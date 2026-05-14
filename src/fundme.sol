@@ -24,7 +24,7 @@ import {PriceConverter, AggregatorV3Interface} from "./PriceConverter.sol";
 // }
 
 contract FundMe {
-    address public OwnerOfSmartContract;
+    address private OwnerOfSmartContract;
     AggregatorV3Interface private priceFeed;
 
     constructor(address passed_priceFeed) {
@@ -34,8 +34,8 @@ contract FundMe {
 
     using PriceConverter for uint256; // All the uint256 have access to the functions to the library we have imported
     // uint public number;
-    address[] public Funders;
-    mapping(address => uint) public addressToAmountFunded;
+    address[] private Funders;
+    mapping(address => uint) private addressToAmountFunded;
     uint public MinimumSpendRupees = 10000e18;
 
     function FundMoney() public payable {
@@ -56,11 +56,25 @@ contract FundMe {
         return priceFeed.version();
     }
 
+    function GasOptimisatedWithdrawMoney() public OnwerFunction {
+        uint256 FunderArrayLength = Funders.length;
+        for (uint256 funderIndex = 0; funderIndex < FunderArrayLength; funderIndex++) {
+            address funder = Funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        Funders = new address[](0);
+        (bool CallStatus, bytes memory DataReturned) = payable(msg.sender).call{
+            value: address(this).balance
+        }(""); // value This tells the EVM how much Ether (in Wei) to send.
+        require(CallStatus, "Funding Failed");
+
+    }
+
     function WithDrawMoney() public OnwerFunction {
         // for loop
         for (
             uint256 funderIndex = 0;
-            funderIndex < Funders.length;
+            funderIndex < Funders.length; // storage variable and we are everytime looping through the code we are reading from the storage slot (oh no!!)
             funderIndex++
         ) {
             address funder = Funders[funderIndex];
@@ -88,5 +102,23 @@ contract FundMe {
             "You cannot withdraw you cheeky bastard, You must be the Owner"
         );
         _; // after the above statements add whatever is in the function
+    }
+
+
+    // view/pure getter functions better than having storage variables as public
+    
+    function getAddressToAmountFunded (address fundingAddress) external view returns(uint256)
+    {
+        return addressToAmountFunded[fundingAddress];
+    }
+
+    function getFunderAddress (uint256 index) external view returns (address)
+    {
+        return Funders[index];
+    }
+
+    function getOwnerOfSmartContract () external view returns(address)
+    {
+        return OwnerOfSmartContract;
     }
 }

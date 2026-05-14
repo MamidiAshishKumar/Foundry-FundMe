@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
+import {MockV3Aggregator} from "../test/Mocks/MockV3Aggregator.sol";
 
 // Mocks
 // 1. Deploy mocks when we are on a local anvil chain
@@ -14,6 +15,9 @@ contract HelperConfig is Script {
     // if we are on a local anvil chain, we deploy mocks
     // Otherwise, grab the exisiting address from the live network
 
+    uint8 public constant DECIMALS = 8; 
+    int256 public constant INITIAL_PRICE = 2000e8;
+
     struct NetworkConfig {
         address priceFeed; // ETH -> USD price feed address
     }
@@ -27,7 +31,7 @@ contract HelperConfig is Script {
         {
             activeChainConfig = getSepoliaEthConfig();
         } else {
-            activeChainConfig = getAnvilConfig();
+            activeChainConfig = getOrCreateAnvilConfig();
         }
     }
 
@@ -50,11 +54,19 @@ contract HelperConfig is Script {
     //     });
 
     // mocks
-    function getAnvilConfig() public returns (NetworkConfig memory) {
+    function getOrCreateAnvilConfig() public returns (NetworkConfig memory) {
+        // if we run this after deploying it will deploy again, so we need to have the below code
+        // address(0) is default address
+        if (activeChainConfig.priceFeed != address(0)) {  
+            return activeChainConfig;
+        }
         // 1. deploy the mocks - mocked contract is a dummy contract
         //2. return mocked contract
         vm.startBroadcast();
-
+        MockV3Aggregator mockPriceFeed = new MockV3Aggregator(DECIMALS, INITIAL_PRICE);
         vm.stopBroadcast();
+
+        NetworkConfig memory anviConfig = NetworkConfig({priceFeed: address(mockPriceFeed)});
+        return anviConfig;
     }
 }
